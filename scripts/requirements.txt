@@ -1,0 +1,5 @@
+httpx==0.28.0
+asyncio-pool==0.6.0
+matplotlib==3.9.3
+pandas==2.2.3
+pytz==2024.2

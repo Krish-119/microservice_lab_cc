@@ -1,0 +1,2763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Ops Control Plane</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       CSS VARIABLES & RESET
+       ═══════════════════════════════════════════════════════════ */
+    :root {
+      --bg: #f8f9fb;
+      --sidebar-bg: #ffffff;
+      --card-bg: #ffffff;
+      --border: #e5e7eb;
+      --border-light: #f0f1f3;
+      --accent: #5b5fc7;
+      --accent-hover: #4a4eb5;
+      --accent-bg: #eff0fc;
+      --accent-text: #5b5fc7;
+      --text: #1a1a2e;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --success-bg: #ecfdf5;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
+      --danger: #ef4444;
+      --danger-bg: #fef2f2;
+      --info: #3b82f6;
+      --info-bg: #eff6ff;
+      --sidebar-width: 240px;
+      --topbar-height: 52px;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SIDEBAR
+       ═══════════════════════════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      z-index: 50;
+      overflow-y: auto;
+    }
+    .sidebar-brand {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-brand-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px; font-weight: 700;
+    }
+    .sidebar-brand-text {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .sidebar-brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .sidebar-nav {
+      padding: 12px 0;
+      flex: 1;
+    }
+    .sidebar-section-label {
+      padding: 8px 20px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    .sidebar-link:hover {
+      background: var(--bg);
+      color: var(--text);
+    }
+    .sidebar-link.active {
+      background: var(--accent-bg);
+      color: var(--accent);
+      border-left-color: var(--accent);
+      font-weight: 600;
+    }
+    .sidebar-link svg {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+    }
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .sidebar-footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       MAIN LAYOUT
+       ═══════════════════════════════════════════════════════════ */
+    .main-wrapper {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Top bar */
+    .topbar {
+      height: var(--topbar-height);
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .topbar-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      width: 280px;
+    }
+    .topbar-search input {
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 13px;
+      color: var(--text);
+      width: 100%;
+      font-family: inherit;
+    }
+    .topbar-search input::placeholder { color: var(--text-muted); }
+    .topbar-search svg { color: var(--text-muted); flex-shrink: 0; width: 16px; height: 16px; }
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .env-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--success-bg);
+      color: var(--success);
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .env-badge .dot {
+      width: 7px; height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+    }
+    .topbar-btn {
+      width: 34px; height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+    .topbar-btn:hover { background: var(--bg); color: var(--text); }
+    .topbar-btn svg { width: 16px; height: 16px; }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      padding: 24px;
+      max-width: 1400px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       PAGE VIEWS (show/hide)
+       ═══════════════════════════════════════════════════════════ */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SHARED COMPONENTS
+       ═══════════════════════════════════════════════════════════ */
+    .page-header {
+      margin-bottom: 24px;
+    }
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .page-header p {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Metrics row */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+    .metric-card .metric-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+    }
+    .metric-card .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .metric-card .metric-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .metric-card .metric-icon {
+      float: right;
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .metric-icon.blue { background: var(--info-bg); color: var(--info); }
+    .metric-icon.green { background: var(--success-bg); color: var(--success); }
+    .metric-icon.purple { background: var(--accent-bg); color: var(--accent); }
+    .metric-icon.orange { background: var(--warning-bg); color: var(--warning); }
+    .metric-icon.red { background: var(--danger-bg); color: var(--danger); }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .card-body {
+      padding: 20px;
+    }
+    .card-body.no-pad { padding: 0; }
+
+    /* Table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .data-table th {
+      text-align: left;
+      padding: 10px 16px;
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+    }
+    .data-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover { background: #f9fafb; }
+    .data-table .agent-name {
+      font-weight: 600;
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .data-table .agent-name:hover { text-decoration: underline; }
+
+    /* Badges / Pills */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .badge-active { background: var(--success-bg); color: var(--success); }
+    .badge-active .dot { background: var(--success); }
+    .badge-inactive { background: #f3f4f6; color: #6b7280; }
+    .badge-inactive .dot { background: #9ca3af; }
+    .badge-warning { background: var(--warning-bg); color: #b45309; }
+    .badge-warning .dot { background: var(--warning); }
+    .badge-critical { background: var(--danger-bg); color: var(--danger); }
+    .badge-critical .dot { background: var(--danger); }
+    .badge-info { background: var(--info-bg); color: var(--info); }
+    .badge-info .dot { background: var(--info); }
+    .badge-loadtest { background: #faf5ff; color: #7c3aed; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg); color: var(--text); }
+    .btn-danger {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+    .btn-success {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid #a7f3d0;
+    }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn svg { width: 14px; height: 14px; }
+
+    /* Budget bar */
+    .budget-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .budget-bar {
+      flex: 1;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 99px;
+      overflow: hidden;
+      max-width: 100px;
+    }
+    .budget-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.3s;
+    }
+    .budget-pct { font-size: 12px; color: var(--text-secondary); font-weight: 500; width: 40px; }
+
+    /* Grid layouts */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+    /* Chart container */
+    .chart-container { position: relative; height: 260px; }
+    .chart-container canvas { max-height: 260px; }
+
+    /* Toolbar / Filter bar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar-search {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      width: 240px;
+    }
+    .toolbar-search input {
+      border: none; background: transparent; outline: none;
+      font-size: 13px; color: var(--text); width: 100%;
+      font-family: inherit;
+    }
+    .toolbar-search input::placeholder { color: var(--text-muted); }
+    .filter-select {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card-bg);
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text-secondary);
+      cursor: pointer;
+      outline: none;
+    }
+    .filter-select:focus { border-color: var(--accent); }
+    .toolbar-right { margin-left: auto; display: flex; gap: 8px; }
+
+    /* Form elements */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--card-bg);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91,95,199,0.1);
+    }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Agent detail layout */
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    .detail-header h1 { font-size: 22px; font-weight: 700; }
+    .detail-header p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+    .detail-header-actions { display: flex; gap: 8px; }
+    .detail-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .detail-meta-item {
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: var(--radius);
+    }
+    .detail-meta-item .label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+    .detail-meta-item .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    /* Playground layout */
+    .playground-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .playground-input textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--card-bg);
+      outline: none;
+      resize: vertical;
+      min-height: 140px;
+    }
+    .playground-input textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91,95,199,0.1);
+    }
+    .execution-result {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.6;
+      min-height: 140px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .execution-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .exec-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .exec-step.done { color: var(--success); }
+    .exec-step.pending { color: var(--text-muted); }
+    .execution-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    /* Infrastructure */
+    .infra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .infra-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .infra-card .infra-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .infra-card .infra-detail {
+      font-size: 12px;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+    .infra-card .infra-detail + .infra-detail {
+      border-top: 1px solid var(--border-light);
+      margin-top: 4px;
+      padding-top: 8px;
+    }
+    .arch-flow {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .arch-node {
+      padding: 10px 24px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 180px;
+    }
+    .arch-arrow {
+      color: var(--text-muted);
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-panel {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      width: 560px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      width: 28px; height: 28px;
+      border: none; background: transparent;
+      cursor: pointer; color: var(--text-muted);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .modal-close:hover { background: var(--bg); color: var(--text); }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--text);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      z-index: 200;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+    /* Action dropdown */
+    .dropdown-wrap { position: relative; display: inline-block; }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      min-width: 160px;
+      z-index: 30;
+      padding: 4px 0;
+    }
+    .dropdown-menu.show { display: block; }
+    .dropdown-item {
+      display: block;
+      padding: 7px 14px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .dropdown-item:hover { background: var(--bg); color: var(--text); }
+    .dropdown-item.danger { color: var(--danger); }
+    .dropdown-item.danger:hover { background: var(--danger-bg); }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .grid-3 { grid-template-columns: 1fr; }
+      .playground-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 13px; }
+
+    /* Back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      cursor: pointer;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    /* Code / JSON viewer */
+    .json-viewer {
+      background: #1e1e2e;
+      color: #a6e3a1;
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      overflow: auto;
+      max-height: 300px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Section header */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .section-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    /* Scrollable table wrapper */
+    .table-wrap { overflow-x: auto; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIDEBAR
+     ═══════════════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">⬡</div>
+    <div>
+      <div class="sidebar-brand-text">AI Ops Platform</div>
+      <div class="sidebar-brand-sub">Control Plane</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Operations</div>
+    <a class="sidebar-link active" data-page="overview" onclick="navigateTo('overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Overview
+    </a>
+    <a class="sidebar-link" data-page="agents" onclick="navigateTo('agents')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Agents
+    </a>
+    <a class="sidebar-link" data-page="models" onclick="navigateTo('models')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Models
+    </a>
+    <a class="sidebar-link" data-page="playground" onclick="navigateTo('playground')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Playground
+    </a>
+
+    <div class="sidebar-section-label" style="margin-top:8px">Monitor</div>
+    <a class="sidebar-link" data-page="observability" onclick="navigateTo('observability')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Observability
+    </a>
+    <a class="sidebar-link" data-page="costs" onclick="navigateTo('costs')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Costs
+    </a>
+    <a class="sidebar-link" data-page="alerts" onclick="navigateTo('alerts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Alerts
+      <span id="alert-count-badge" style="margin-left:auto;background:var(--danger);color:#fff;font-size:11px;font-weight:600;padding:1px 7px;border-radius:99px;display:none"></span>
+    </a>
+
+    <div class="sidebar-section-label" style="margin-top:8px">System</div>
+    <a class="sidebar-link" data-page="infrastructure" onclick="navigateTo('infrastructure')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg>
+      Infrastructure
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="margin-bottom:4px">API Docs</div>
+    <a href="http://localhost:8001/docs" target="_blank">Agent</a> ·
+    <a href="http://localhost:8002/docs" target="_blank">Usage</a> ·
+    <a href="http://localhost:8003/docs" target="_blank">Cost</a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN WRAPPER
+     ═══════════════════════════════════════════════════════════ -->
+<div class="main-wrapper">
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search agents, models…" id="global-search" onkeyup="handleGlobalSearch(event)" />
+    </div>
+    <div class="topbar-right">
+      <div class="env-badge" id="system-health-badge">
+        <div class="dot"></div>
+        All Systems Operational
+      </div>
+      <button class="topbar-btn" onclick="refreshCurrentPage()" title="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: OVERVIEW
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <h1>AI Ops Control Plane</h1>
+        <p>Manage, execute and monitor your AI agent fleet.</p>
+      </div>
+
+      <div class="metrics-row" id="overview-metrics">
+        <div class="metric-card">
+          <div class="metric-icon blue" style="float:right">🤖</div>
+          <div class="metric-label">Agents</div>
+          <div class="metric-value" id="ov-agents">—</div>
+          <div class="metric-sub" id="ov-agents-active">— active</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon green" style="float:right">📊</div>
+          <div class="metric-label">Total Requests</div>
+          <div class="metric-value" id="ov-requests">—</div>
+          <div class="metric-sub" id="ov-success-fail">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon purple" style="float:right">🔤</div>
+          <div class="metric-label">Total Tokens</div>
+          <div class="metric-value" id="ov-tokens">—</div>
+          <div class="metric-sub">across all agents</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon orange" style="float:right">💰</div>
+          <div class="metric-label">Estimated Cost</div>
+          <div class="metric-value" id="ov-cost">—</div>
+          <div class="metric-sub">USD, illustrative</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon red" style="float:right">⚠️</div>
+          <div class="metric-label">Failed Requests</div>
+          <div class="metric-value" id="ov-failed">—</div>
+          <div class="metric-sub">model call failures</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon green" style="float:right">🎯</div>
+          <div class="metric-label">Active Agents</div>
+          <div class="metric-value" id="ov-active-count">—</div>
+          <div class="metric-sub">currently enabled</div>
+        </div>
+      </div>
+
+      <!-- Agent Fleet Table -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Agent Fleet</h3>
+          <div style="display:flex;gap:8px">
+            <select class="filter-select" id="ov-env-filter" onchange="renderOverviewAgents()">
+              <option value="all">All Agents</option>
+              <option value="production">Production</option>
+              <option value="loadtest">Load Testing</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="navigateTo('create-agent')">+ Create Agent</button>
+          </div>
+        </div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Status</th>
+                  <th>Model</th>
+                  <th>Team</th>
+                  <th>Budget Usage</th>
+                  <th>Daily Budget</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ov-agents-tbody">
+                <tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:30px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h3>Cost by Model (USD)</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="ov-chart-cost"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Tokens by Agent</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="ov-chart-tokens"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Alerts preview -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Budget Alerts</h3>
+          <button class="btn btn-secondary btn-sm" onclick="navigateTo('alerts')">View All</button>
+        </div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Agent</th><th>Level</th><th>Budget Used</th><th>Date</th></tr>
+              </thead>
+              <tbody id="ov-alerts-tbody">
+                <tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: AGENTS
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-agents">
+      <div class="page-header">
+        <h1>Agent Fleet</h1>
+        <p>Manage, configure and monitor your AI agents.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text-muted)"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search agents…" id="agent-search" onkeyup="filterAgentTable()" />
+        </div>
+        <select class="filter-select" id="agent-status-filter" onchange="filterAgentTable()">
+          <option value="all">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+        <select class="filter-select" id="agent-model-filter" onchange="filterAgentTable()">
+          <option value="all">All Models</option>
+        </select>
+        <select class="filter-select" id="agent-env-filter" onchange="filterAgentTable()">
+          <option value="all">All Environments</option>
+          <option value="production">Production</option>
+          <option value="loadtest">Load Testing</option>
+        </select>
+        <div class="toolbar-right">
+          <button class="btn btn-primary" onclick="navigateTo('create-agent')">+ Create Agent</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Description</th>
+                  <th>Model</th>
+                  <th>Status</th>
+                  <th>Team</th>
+                  <th>Budget</th>
+                  <th>Budget Usage</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="agents-tbody">
+                <tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:30px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: AGENT DETAIL
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-agent-detail">
+      <a class="back-link" onclick="navigateTo('agents')">← Back to Agents</a>
+
+      <div class="detail-header">
+        <div>
+          <h1 id="ad-name">—</h1>
+          <p id="ad-description">—</p>
+        </div>
+        <div class="detail-header-actions">
+          <span class="badge" id="ad-status-badge">—</span>
+          <button class="btn btn-primary" id="ad-run-btn" onclick="openPlaygroundForAgent()">▶ Run Agent</button>
+          <button class="btn btn-secondary" id="ad-edit-btn" onclick="editCurrentAgent()">Edit</button>
+          <button class="btn btn-secondary" id="ad-toggle-btn" onclick="toggleAgentStatus()">—</button>
+        </div>
+      </div>
+
+      <!-- Overview meta -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>Overview</h3></div>
+        <div class="card-body">
+          <div class="detail-meta" id="ad-meta-grid">
+          </div>
+        </div>
+      </div>
+
+      <!-- Model & Budget -->
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header"><h3>Model</h3></div>
+          <div class="card-body" id="ad-model-info">—</div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Budget</h3></div>
+          <div class="card-body" id="ad-budget-info">—</div>
+        </div>
+      </div>
+
+      <!-- Recent Executions -->
+      <div class="card">
+        <div class="card-header"><h3>Recent Executions</h3></div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Tokens</th>
+                  <th>Latency</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="ad-executions-tbody">
+                <tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost records -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header"><h3>Cost Records</h3></div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Tokens</th>
+                  <th>Cost (USD)</th>
+                  <th>Source</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="ad-costs-tbody">
+                <tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:20px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: CREATE / EDIT AGENT
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-create-agent">
+      <a class="back-link" onclick="navigateTo('agents')">← Back to Agents</a>
+      <div class="page-header">
+        <h1 id="form-title">Create Agent</h1>
+        <p id="form-subtitle">Add a new agent to the fleet.</p>
+      </div>
+
+      <div class="card" style="max-width:640px">
+        <div class="card-body">
+          <input type="hidden" id="form-agent-id" value="" />
+          <div class="form-group">
+            <label>Agent Name *</label>
+            <input type="text" id="form-name" placeholder="e.g. Research Agent" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea id="form-description" placeholder="What does this agent do?"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Model *</label>
+              <select id="form-model">
+                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                <option value="claude-haiku">claude-haiku</option>
+                <option value="gemini-flash">gemini-flash</option>
+                <option value="llama3.1:8b">llama3.1:8b</option>
+                <option value="qwen3.5:4b">qwen3.5:4b</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Team</label>
+              <input type="text" id="form-team" placeholder="e.g. engineering" value="default" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Daily Token Budget</label>
+              <input type="number" id="form-budget" value="100000" min="1000" />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select id="form-status">
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button class="btn btn-secondary" onclick="navigateTo('agents')">Cancel</button>
+            <button class="btn btn-primary" id="form-submit-btn" onclick="submitAgentForm()">Create Agent</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: PLAYGROUND
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-playground">
+      <div class="page-header">
+        <h1>Agent Playground</h1>
+        <p>Execute agents and inspect results in real time.</p>
+      </div>
+
+      <div class="playground-grid">
+        <!-- Left: Controls -->
+        <div>
+          <div class="card">
+            <div class="card-header"><h3>Configuration</h3></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>Agent</label>
+                <select id="pg-agent-select" onchange="updatePlaygroundAgent()">
+                  <option value="">Select an agent…</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:16px;margin-bottom:16px">
+                <div style="flex:1">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Model</div>
+                  <div style="font-size:14px;font-weight:600" id="pg-model">—</div>
+                </div>
+                <div style="flex:1">
+                  <div style="font-size:12px;color:var(--text-muted);margin-bottom:2px">Status</div>
+                  <div id="pg-status">—</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Task / Prompt</label>
+                <textarea id="pg-prompt" rows="5" placeholder="Enter your task prompt…">Analyze the current service usage and provide a short operational summary.</textarea>
+              </div>
+              <button class="btn btn-primary" id="pg-run-btn" onclick="runPlayground()" style="width:100%">
+                ▶ Run Agent
+              </button>
+            </div>
+          </div>
+
+          <!-- Execution steps -->
+          <div class="card" id="pg-steps-card" style="display:none">
+            <div class="card-header"><h3>Execution Pipeline</h3></div>
+            <div class="card-body">
+              <div class="execution-steps" id="pg-steps">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div>
+          <div class="card" id="pg-result-card" style="display:none">
+            <div class="card-header">
+              <h3>Execution Result</h3>
+              <button class="btn btn-secondary btn-sm" onclick="toggleTechnicalDetails()">Technical Details</button>
+            </div>
+            <div class="card-body">
+              <div id="pg-result-display">
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">Response</div>
+                <div class="execution-result" id="pg-result-text"></div>
+              </div>
+
+              <!-- Metrics -->
+              <div class="execution-metrics" id="pg-metrics" style="display:none">
+              </div>
+
+              <!-- Technical details -->
+              <div id="pg-technical" style="display:none;margin-top:16px">
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">Raw Response</div>
+                <div class="json-viewer" id="pg-raw-json"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Placeholder -->
+          <div class="card" id="pg-placeholder">
+            <div class="card-body">
+              <div class="empty-state">
+                <div style="font-size:40px;margin-bottom:12px">▶</div>
+                <p>Select an agent and run a task to see results here.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: MODELS
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-models">
+      <div class="page-header">
+        <h1>Model Catalog</h1>
+        <p>Available models, pricing and usage across agents.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Provider</th>
+                  <th>Type</th>
+                  <th>Input Price / 1K tokens</th>
+                  <th>Output Price / 1K tokens</th>
+                  <th>Agents Using</th>
+                  <th>Total Requests</th>
+                  <th>Total Cost (USD)</th>
+                </tr>
+              </thead>
+              <tbody id="models-tbody">
+                <tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:30px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: OBSERVABILITY
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-observability">
+      <div class="page-header">
+        <h1>Observability</h1>
+        <p>Monitor request volume, token consumption, latency and execution status.</p>
+      </div>
+
+      <div class="metrics-row" id="obs-metrics">
+        <div class="metric-card">
+          <div class="metric-label">Total Requests</div>
+          <div class="metric-value" id="obs-requests">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Tokens</div>
+          <div class="metric-value" id="obs-tokens">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Successful</div>
+          <div class="metric-value" id="obs-success" style="color:var(--success)">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Failed</div>
+          <div class="metric-value" id="obs-failed" style="color:var(--danger)">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Latency</div>
+          <div class="metric-value" id="obs-latency">—</div>
+        </div>
+      </div>
+
+      <!-- Recent executions -->
+      <div class="card">
+        <div class="card-header">
+          <h3>Recent Executions</h3>
+          <div style="display:flex;gap:8px">
+            <select class="filter-select" id="obs-source-filter" onchange="loadObservability()">
+              <option value="">All Sources</option>
+              <option value="demo">Demo</option>
+              <option value="seed">Seed</option>
+              <option value="loadtest">Load Test</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Agent</th>
+                  <th>Input Tokens</th>
+                  <th>Output Tokens</th>
+                  <th>Total</th>
+                  <th>Latency</th>
+                  <th>Status</th>
+                  <th>Source</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="obs-tbody">
+                <tr><td colspan="9" style="color:var(--text-muted);text-align:center;padding:30px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: COSTS
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-costs">
+      <div class="page-header">
+        <h1>AI Cost Management</h1>
+        <p>Track spending, model pricing and budget utilization across your agent fleet.</p>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">Total Cost</div>
+          <div class="metric-value" id="cost-total">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Cost / Request</div>
+          <div class="metric-value" id="cost-avg">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Total Requests</div>
+          <div class="metric-value" id="cost-requests">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Highest Cost Agent</div>
+          <div class="metric-value" id="cost-highest-agent" style="font-size:16px">—</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header"><h3>Cost by Agent (USD)</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="cost-agent-chart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Cost by Model (USD)</h3></div>
+          <div class="card-body"><div class="chart-container"><canvas id="cost-model-chart"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Model Pricing -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>Model Pricing</h3></div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Model</th><th>Input Price / 1K tokens</th><th>Output Price / 1K tokens</th><th>Currency</th></tr>
+              </thead>
+              <tbody id="cost-pricing-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Budget -->
+      <div class="card">
+        <div class="card-header"><h3>Agent Budget Status</h3></div>
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Agent</th><th>Daily Budget</th><th>Tokens Today</th><th>Usage %</th><th>Remaining</th><th>Status</th></tr>
+              </thead>
+              <tbody id="cost-budget-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: ALERTS
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-alerts">
+      <div class="page-header">
+        <h1>Alert Center</h1>
+        <p>Budget alerts and threshold notifications across your agent fleet.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-body no-pad">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Severity</th>
+                  <th>Budget Used</th>
+                  <th>Tokens Today</th>
+                  <th>Daily Budget</th>
+                  <th>Date</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="alerts-full-tbody">
+                <tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:30px">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════
+         PAGE: INFRASTRUCTURE
+         ═══════════════════════════════════════════════════════ -->
+    <div class="page" id="page-infrastructure">
+      <div class="page-header">
+        <h1>Infrastructure</h1>
+        <p>Service health, architecture and deployment status.</p>
+      </div>
+
+      <!-- Service status -->
+      <div class="infra-grid" style="margin-bottom:24px">
+        <div class="infra-card" id="infra-agent-card">
+          <div class="infra-title">
+            <span style="font-size:18px">🔵</span> Agent Service
+            <span class="badge badge-active" id="infra-agent-badge" style="margin-left:auto"><span class="dot"></span>Checking…</span>
+          </div>
+          <div class="infra-detail"><span>Host</span><span>localhost:8001</span></div>
+          <div class="infra-detail"><span>Container</span><span>agent-service:8000</span></div>
+          <div class="infra-detail"><span>Type</span><span>Microservice</span></div>
+          <div class="infra-detail"><span>Database</span><span id="infra-agent-db">—</span></div>
+          <div class="infra-detail"><span>Dependencies</span><span>usage-service, cost-service</span></div>
+        </div>
+        <div class="infra-card" id="infra-usage-card">
+          <div class="infra-title">
+            <span style="font-size:18px">🟢</span> Usage Service
+            <span class="badge badge-active" id="infra-usage-badge" style="margin-left:auto"><span class="dot"></span>Checking…</span>
+          </div>
+          <div class="infra-detail"><span>Host</span><span>localhost:8002</span></div>
+          <div class="infra-detail"><span>Container</span><span>usage-service:8000</span></div>
+          <div class="infra-detail"><span>Type</span><span>Microservice</span></div>
+          <div class="infra-detail"><span>Database</span><span id="infra-usage-db">—</span></div>
+          <div class="infra-detail"><span>Dependencies</span><span>cost-service</span></div>
+        </div>
+        <div class="infra-card" id="infra-cost-card">
+          <div class="infra-title">
+            <span style="font-size:18px">🟡</span> Cost Service
+            <span class="badge badge-active" id="infra-cost-badge" style="margin-left:auto"><span class="dot"></span>Checking…</span>
+          </div>
+          <div class="infra-detail"><span>Host</span><span>localhost:8003</span></div>
+          <div class="infra-detail"><span>Container</span><span>cost-service:8000</span></div>
+          <div class="infra-detail"><span>Type</span><span>Microservice</span></div>
+          <div class="infra-detail"><span>Database</span><span id="infra-cost-db">—</span></div>
+          <div class="infra-detail"><span>Dependencies</span><span>PostgreSQL</span></div>
+        </div>
+        <div class="infra-card">
+          <div class="infra-title">
+            <span style="font-size:18px">🐘</span> PostgreSQL
+            <span class="badge badge-active" id="infra-pg-badge" style="margin-left:auto"><span class="dot"></span>Checking…</span>
+          </div>
+          <div class="infra-detail"><span>Host</span><span>localhost:5432</span></div>
+          <div class="infra-detail"><span>Container</span><span>postgres-db</span></div>
+          <div class="infra-detail"><span>Type</span><span>Database Infrastructure</span></div>
+          <div class="infra-detail"><span>Version</span><span>PostgreSQL 16</span></div>
+          <div class="infra-detail"><span>Databases</span><span>agentdb, usagedb, costdb</span></div>
+        </div>
+      </div>
+
+      <!-- Docker & Architecture -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><h3>Docker Environment</h3></div>
+          <div class="card-body">
+            <div class="detail-meta">
+              <div class="detail-meta-item">
+                <div class="label">Containers</div>
+                <div class="value">4</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="label">Network</div>
+                <div class="value">ai-ops-net</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="label">Orchestration</div>
+                <div class="value">Docker Compose</div>
+              </div>
+              <div class="detail-meta-item">
+                <div class="label">Architecture</div>
+                <div class="value">Microservices (3)</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:var(--radius);font-size:12px;color:var(--text-secondary)">
+              <div style="margin-bottom:4px;font-weight:600;color:var(--text)">Port Mappings</div>
+              <div>localhost:8001 → agent-service:8000</div>
+              <div>localhost:8002 → usage-service:8000</div>
+              <div>localhost:8003 → cost-service:8000</div>
+              <div>localhost:5432 → postgres:5432</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Architecture</h3></div>
+          <div class="card-body">
+            <div class="arch-flow">
+              <div class="arch-node" style="background:var(--info-bg);color:var(--info);border:1px solid #bfdbfe">👤 User / Browser</div>
+              <div class="arch-arrow">↓</div>
+              <div class="arch-node" style="background:#eff0fc;color:var(--accent);border:1px solid #c7d2fe">🔵 Agent Service (Orchestrator)</div>
+              <div class="arch-arrow">↓</div>
+              <div class="arch-node" style="background:var(--success-bg);color:#065f46;border:1px solid #a7f3d0">🟢 Usage Service (Telemetry)</div>
+              <div class="arch-arrow">↓</div>
+              <div class="arch-node" style="background:var(--warning-bg);color:#92400e;border:1px solid #fde68a">🟡 Cost Service (Analytics)</div>
+              <div class="arch-arrow">↓</div>
+              <div class="arch-node" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db">🐘 PostgreSQL (3 databases)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-wrapper -->
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+// ── Global state ─────────────────────────────────────────────
+let STATE = {
+  agents: [],
+  agentAnalytics: {},
+  overview: null,
+  currentAgentId: null,
+  charts: {}
+};
+
+const AGENT_API = '';
+const USAGE_API = 'http://localhost:8002';
+const COST_API = 'http://localhost:8003';
+
+// ── Navigation ───────────────────────────────────────────────
+function navigateTo(page, params) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  // Update sidebar
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  const sidebarLink = document.querySelector(`.sidebar-link[data-page="${page}"]`);
+  if (sidebarLink) sidebarLink.classList.add('active');
+
+  // Show target page
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) {
+    pageEl.classList.add('active');
+  }
+
+  // Load page data
+  switch (page) {
+    case 'overview': loadOverview(); break;
+    case 'agents': loadAgents(); break;
+    case 'agent-detail': loadAgentDetail(params); break;
+    case 'create-agent': setupAgentForm(params); break;
+    case 'playground': loadPlayground(params); break;
+    case 'models': loadModels(); break;
+    case 'observability': loadObservability(); break;
+    case 'costs': loadCosts(); break;
+    case 'alerts': loadAlerts(); break;
+    case 'infrastructure': loadInfrastructure(); break;
+  }
+}
+
+function refreshCurrentPage() {
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const pageId = activePage.id.replace('page-', '');
+    if (pageId === 'agent-detail') {
+      loadAgentDetail(STATE.currentAgentId);
+    } else {
+      navigateTo(pageId);
+    }
+  }
+}
+
+// ── Utility ──────────────────────────────────────────────────
+async function fetchJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url} → ${r.status}`);
+  return r.json();
+}
+
+function fmt(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toString();
+}
+
+function fmtCost(v) {
+  const n = parseFloat(v || 0);
+  if (n >= 1) return '$' + n.toFixed(2);
+  if (n >= 0.01) return '$' + n.toFixed(4);
+  return '$' + n.toFixed(6);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const date = new Date(d);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+         date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function fmtDateShort(d) {
+  if (!d) return '—';
+  const date = new Date(d);
+  const now = new Date();
+  const diff = (now - date) / 1000;
+  if (diff < 60) return Math.floor(diff) + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'min ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function isLoadTest(name) {
+  return /^loadtest/i.test(name);
+}
+
+function statusBadge(status) {
+  if (status === 'ACTIVE') return '<span class="badge badge-active"><span class="dot"></span>Active</span>';
+  return '<span class="badge badge-inactive"><span class="dot"></span>Inactive</span>';
+}
+
+function alertBadge(level) {
+  if (level === 'CRITICAL') return '<span class="badge badge-critical"><span class="dot"></span>Critical</span>';
+  return '<span class="badge badge-warning"><span class="dot"></span>Warning</span>';
+}
+
+function execStatusBadge(status) {
+  if (status === 'success') return '<span class="badge badge-active"><span class="dot"></span>Success</span>';
+  return '<span class="badge badge-critical"><span class="dot"></span>Failed</span>';
+}
+
+function showToast(msg, duration) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, duration || 2500);
+}
+
+const PALETTE = ['#5b5fc7','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#ec4899','#06b6d4','#f97316'];
+
+function destroyChart(key) {
+  if (STATE.charts[key]) {
+    STATE.charts[key].destroy();
+    STATE.charts[key] = null;
+  }
+}
+
+// ── Global search ────────────────────────────────────────────
+function handleGlobalSearch(e) {
+  if (e.key === 'Enter') {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) return;
+    // Search agents
+    const match = STATE.agents.find(a => a.name.toLowerCase().includes(q));
+    if (match) {
+      navigateTo('agent-detail', match.id);
+    } else {
+      navigateTo('agents');
+      document.getElementById('agent-search').value = q;
+      filterAgentTable();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: OVERVIEW
+// ═══════════════════════════════════════════════════════════
+async function loadOverview() {
+  try {
+    const overview = await fetchJSON('/dashboard/overview');
+    STATE.overview = overview;
+    STATE.agents = overview.agents || [];
+
+    // Build analytics map
+    STATE.agentAnalytics = {};
+    (overview.tokens_per_agent || []).forEach(a => {
+      STATE.agentAnalytics[a.agent_id] = a;
+    });
+
+    // Metrics
+    const totalAgents = overview.agents.length;
+    const activeAgents = overview.agents.filter(a => a.status === 'ACTIVE').length;
+    const totalReq = overview.total_requests || 0;
+    const failed = overview.failed_model_calls || 0;
+
+    document.getElementById('ov-agents').textContent = totalAgents;
+    document.getElementById('ov-agents-active').textContent = activeAgents + ' active';
+    document.getElementById('ov-requests').textContent = totalReq.toLocaleString();
+    document.getElementById('ov-success-fail').textContent =
+      (totalReq - failed).toLocaleString() + ' success / ' + failed.toLocaleString() + ' failed';
+    document.getElementById('ov-tokens').textContent = fmt(overview.total_tokens || 0);
+    document.getElementById('ov-cost').textContent = fmtCost(overview.total_cost_usd);
+    document.getElementById('ov-failed').textContent = failed.toLocaleString();
+    document.getElementById('ov-active-count').textContent = activeAgents;
+
+    renderOverviewAgents();
+    renderOverviewCharts(overview);
+    renderOverviewAlerts(overview.recent_alerts || []);
+    updateAlertBadge(overview.recent_alerts || []);
+  } catch (e) {
+    console.error('Overview load error:', e);
+  }
+}
+
+function renderOverviewAgents() {
+  const filter = document.getElementById('ov-env-filter').value;
+  let agents = STATE.agents;
+  if (filter === 'production') agents = agents.filter(a => !isLoadTest(a.name));
+  if (filter === 'loadtest') agents = agents.filter(a => isLoadTest(a.name));
+
+  const tbody = document.getElementById('ov-agents-tbody');
+  if (!agents.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:30px">No agents found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = agents.map(a => {
+    const analytics = STATE.agentAnalytics[a.id] || {};
+    const tokensToday = analytics.tokens_today || 0;
+    const budget = a.daily_token_budget || 1;
+    const pct = Math.min(9999, Math.round(tokensToday / budget * 100));
+    const fillW = Math.min(100, pct);
+    const fillColor = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+    const envBadge = isLoadTest(a.name) ? '<span class="badge badge-loadtest" style="font-size:11px;padding:2px 6px;margin-left:4px">LOAD TEST</span>' : '';
+
+    return `<tr>
+      <td>
+        <span class="agent-name" onclick="navigateTo('agent-detail',${a.id})">${a.name}</span>
+        ${envBadge}
+      </td>
+      <td>${statusBadge(a.status)}</td>
+      <td><code style="font-size:12px;color:var(--accent)">${a.model}</code></td>
+      <td style="color:var(--text-secondary)">${a.owner_team}</td>
+      <td>
+        <div class="budget-bar-container">
+          <div class="budget-bar"><div class="budget-fill" style="width:${fillW}%;background:${fillColor}"></div></div>
+          <span class="budget-pct">${pct}%</span>
+        </div>
+      </td>
+      <td style="font-size:12px;color:var(--text-secondary)">${fmt(budget)} tokens</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="navigateTo('agent-detail',${a.id})" style="margin-right:4px">Open</button>
+        <button class="btn btn-secondary btn-sm" onclick="openPlaygroundForAgentId(${a.id})" ${a.status !== 'ACTIVE' ? 'disabled' : ''}>▶ Run</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderOverviewCharts(overview) {
+  // Cost by model
+  const cpm = overview.cost_per_model || [];
+  destroyChart('ovCost');
+  if (cpm.length) {
+    STATE.charts.ovCost = new Chart(document.getElementById('ov-chart-cost'), {
+      type: 'bar',
+      data: {
+        labels: cpm.map(d => d.model),
+        datasets: [{ data: cpm.map(d => parseFloat(d.total_cost_usd || 0)), backgroundColor: PALETTE, borderRadius: 6, barThickness: 32 }]
+      },
+      options: chartOpts('$')
+    });
+  }
+
+  // Tokens by agent
+  const tpa = (overview.tokens_per_agent || []).slice(0, 10);
+  destroyChart('ovTokens');
+  if (tpa.length) {
+    STATE.charts.ovTokens = new Chart(document.getElementById('ov-chart-tokens'), {
+      type: 'bar',
+      data: {
+        labels: tpa.map(d => d.agent_name),
+        datasets: [{ data: tpa.map(d => d.total_tokens || 0), backgroundColor: PALETTE, borderRadius: 6, barThickness: 20 }]
+      },
+      options: { ...chartOpts(), indexAxis: 'y' }
+    });
+  }
+}
+
+function renderOverviewAlerts(alerts) {
+  const tbody = document.getElementById('ov-alerts-tbody');
+  if (!alerts.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted);text-align:center;padding:20px">No alerts — all agents within budget</td></tr>';
+    return;
+  }
+  tbody.innerHTML = alerts.slice(0, 8).map(a => `<tr>
+    <td><strong>${a.agent_name}</strong></td>
+    <td>${alertBadge(a.level)}</td>
+    <td style="font-weight:600;color:${a.level === 'CRITICAL' ? 'var(--danger)' : 'var(--warning)'}">${parseFloat(a.budget_used_pct || 0).toFixed(1)}%</td>
+    <td style="color:var(--text-secondary);font-size:12px">${a.alert_date || ''}</td>
+  </tr>`).join('');
+}
+
+function updateAlertBadge(alerts) {
+  const badge = document.getElementById('alert-count-badge');
+  if (alerts.length > 0) {
+    badge.textContent = alerts.length;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function chartOpts(prefix) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#9ca3af', font: { size: 11 } }, grid: { color: '#f0f1f3' } },
+      y: { ticks: { color: '#9ca3af', font: { size: 11 }, callback: v => prefix ? prefix + v.toFixed(4) : fmt(v) }, grid: { color: '#f0f1f3' } }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: AGENTS
+// ═══════════════════════════════════════════════════════════
+async function loadAgents() {
+  try {
+    const [agents, overview] = await Promise.all([
+      fetchJSON('/agents'),
+      fetchJSON('/dashboard/overview')
+    ]);
+    STATE.agents = agents;
+    STATE.agentAnalytics = {};
+    (overview.tokens_per_agent || []).forEach(a => { STATE.agentAnalytics[a.agent_id] = a; });
+
+    // Populate model filter
+    const modelFilter = document.getElementById('agent-model-filter');
+    const models = [...new Set(agents.map(a => a.model))];
+    modelFilter.innerHTML = '<option value="all">All Models</option>' + models.map(m => `<option value="${m}">${m}</option>`).join('');
+
+    filterAgentTable();
+  } catch (e) {
+    console.error('Agents load error:', e);
+  }
+}
+
+function filterAgentTable() {
+  const search = (document.getElementById('agent-search').value || '').toLowerCase();
+  const statusFilter = document.getElementById('agent-status-filter').value;
+  const modelFilter = document.getElementById('agent-model-filter').value;
+  const envFilter = document.getElementById('agent-env-filter').value;
+
+  let agents = STATE.agents;
+  if (search) agents = agents.filter(a => a.name.toLowerCase().includes(search) || (a.description || '').toLowerCase().includes(search));
+  if (statusFilter !== 'all') agents = agents.filter(a => a.status === statusFilter);
+  if (modelFilter !== 'all') agents = agents.filter(a => a.model === modelFilter);
+  if (envFilter === 'production') agents = agents.filter(a => !isLoadTest(a.name));
+  if (envFilter === 'loadtest') agents = agents.filter(a => isLoadTest(a.name));
+
+  const tbody = document.getElementById('agents-tbody');
+  if (!agents.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:30px">No agents match filters</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = agents.map(a => {
+    const analytics = STATE.agentAnalytics[a.id] || {};
+    const tokensToday = analytics.tokens_today || 0;
+    const budget = a.daily_token_budget || 1;
+    const pct = Math.min(9999, Math.round(tokensToday / budget * 100));
+    const fillW = Math.min(100, pct);
+    const fillColor = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+
+    return `<tr>
+      <td>
+        <span class="agent-name" onclick="navigateTo('agent-detail',${a.id})">${a.name}</span>
+        ${isLoadTest(a.name) ? '<span class="badge badge-loadtest" style="font-size:10px;padding:1px 6px;margin-left:4px">LT</span>' : ''}
+      </td>
+      <td style="color:var(--text-secondary);font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.description || '—'}</td>
+      <td><code style="font-size:12px;color:var(--accent)">${a.model}</code></td>
+      <td>${statusBadge(a.status)}</td>
+      <td style="color:var(--text-secondary);font-size:12px">${a.owner_team}</td>
+      <td style="font-size:12px;color:var(--text-secondary)">${fmt(budget)}</td>
+      <td>
+        <div class="budget-bar-container">
+          <div class="budget-bar"><div class="budget-fill" style="width:${fillW}%;background:${fillColor}"></div></div>
+          <span class="budget-pct">${pct}%</span>
+        </div>
+      </td>
+      <td>
+        <div class="dropdown-wrap">
+          <button class="btn btn-secondary btn-sm" onclick="toggleDropdown(event)">Actions ▾</button>
+          <div class="dropdown-menu">
+            <button class="dropdown-item" onclick="navigateTo('agent-detail',${a.id})">Open</button>
+            <button class="dropdown-item" onclick="openPlaygroundForAgentId(${a.id})" ${a.status !== 'ACTIVE' ? 'disabled' : ''}>▶ Run</button>
+            <button class="dropdown-item" onclick="navigateTo('create-agent',${a.id})">Edit</button>
+            <button class="dropdown-item" onclick="toggleStatus(${a.id},'${a.status}')">${a.status === 'ACTIVE' ? 'Disable' : 'Enable'}</button>
+            <button class="dropdown-item danger" onclick="deleteAgent(${a.id},'${a.name.replace(/'/g, "\\'")}')">Delete</button>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleDropdown(e) {
+  e.stopPropagation();
+  // Close all other open dropdowns first
+  document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+    if (m !== e.target.nextElementSibling) m.classList.remove('show');
+  });
+  const menu = e.target.nextElementSibling;
+  menu.classList.toggle('show');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+});
+
+async function toggleStatus(agentId, currentStatus) {
+  const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  try {
+    await fetch(`/agents/${agentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    showToast(`Agent ${newStatus === 'ACTIVE' ? 'enabled' : 'disabled'} ✓`);
+    loadAgents();
+  } catch (e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+async function deleteAgent(agentId, name) {
+  if (!confirm(`Delete agent "${name}"? This cannot be undone.`)) return;
+  try {
+    await fetch(`/agents/${agentId}`, { method: 'DELETE' });
+    showToast('Agent deleted ✓');
+    loadAgents();
+  } catch (e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: AGENT DETAIL
+// ═══════════════════════════════════════════════════════════
+async function loadAgentDetail(agentId) {
+  if (!agentId) { navigateTo('agents'); return; }
+  STATE.currentAgentId = agentId;
+
+  document.getElementById('page-agent-detail').classList.add('active');
+
+  try {
+    const [agent, usageRecords, costRecords] = await Promise.all([
+      fetchJSON(`/agents/${agentId}`),
+      fetchJSON(`${USAGE_API}/usage/agent/${agentId}?limit=20`).catch(() => []),
+      fetchJSON(`${COST_API}/cost/agent/${agentId}?limit=20`).catch(() => [])
+    ]);
+
+    // Also try to get analytics
+    let analytics = {};
+    try {
+      const overview = await fetchJSON('/dashboard/overview');
+      const match = (overview.tokens_per_agent || []).find(a => a.agent_id === agentId);
+      if (match) analytics = match;
+    } catch (e) {}
+
+    // Header
+    document.getElementById('ad-name').textContent = agent.name;
+    document.getElementById('ad-description').textContent = agent.description || 'No description';
+
+    const statusBadgeEl = document.getElementById('ad-status-badge');
+    statusBadgeEl.className = 'badge ' + (agent.status === 'ACTIVE' ? 'badge-active' : 'badge-inactive');
+    statusBadgeEl.innerHTML = `<span class="dot"></span>${agent.status === 'ACTIVE' ? 'Enabled' : 'Disabled'}`;
+
+    document.getElementById('ad-run-btn').disabled = agent.status !== 'ACTIVE';
+    document.getElementById('ad-toggle-btn').textContent = agent.status === 'ACTIVE' ? 'Disable' : 'Enable';
+    document.getElementById('ad-toggle-btn').className = agent.status === 'ACTIVE' ? 'btn btn-danger' : 'btn btn-success';
+
+    // Meta grid
+    document.getElementById('ad-meta-grid').innerHTML = `
+      <div class="detail-meta-item"><div class="label">Agent ID</div><div class="value">${agent.id}</div></div>
+      <div class="detail-meta-item"><div class="label">Name</div><div class="value">${agent.name}</div></div>
+      <div class="detail-meta-item"><div class="label">Team</div><div class="value">${agent.owner_team}</div></div>
+      <div class="detail-meta-item"><div class="label">Status</div><div class="value">${agent.status}</div></div>
+      <div class="detail-meta-item"><div class="label">Created</div><div class="value">${fmtDate(agent.created_at)}</div></div>
+      <div class="detail-meta-item"><div class="label">Updated</div><div class="value">${fmtDate(agent.updated_at)}</div></div>
+    `;
+
+    // Model info
+    document.getElementById('ad-model-info').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <code style="font-size:16px;font-weight:600;color:var(--accent)">${agent.model}</code>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary)">
+        This agent uses the <strong>${agent.model}</strong> model for all executions.
+        Model pricing and usage details are available in the Model Catalog.
+      </div>
+    `;
+
+    // Budget info
+    const tokensToday = analytics.tokens_today || 0;
+    const budget = agent.daily_token_budget || 1;
+    const pct = Math.round(tokensToday / budget * 100);
+    const remaining = Math.max(0, budget - tokensToday);
+    const fillColor = pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)';
+
+    document.getElementById('ad-budget-info').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="detail-meta-item"><div class="label">Daily Token Budget</div><div class="value">${fmt(budget)}</div></div>
+        <div class="detail-meta-item"><div class="label">Tokens Used Today</div><div class="value">${fmt(tokensToday)}</div></div>
+        <div class="detail-meta-item"><div class="label">Budget Used</div><div class="value" style="color:${fillColor}">${pct}%</div></div>
+        <div class="detail-meta-item"><div class="label">Remaining</div><div class="value">${fmt(remaining)}</div></div>
+      </div>
+      <div class="budget-bar" style="height:8px;max-width:100%">
+        <div class="budget-fill" style="width:${Math.min(100, pct)}%;background:${fillColor}"></div>
+      </div>
+    `;
+
+    // Recent executions (usage records)
+    const execTbody = document.getElementById('ad-executions-tbody');
+    if (!usageRecords.length) {
+      execTbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);text-align:center;padding:20px">No executions yet</td></tr>';
+    } else {
+      execTbody.innerHTML = usageRecords.map(r => `<tr>
+        <td style="font-family:monospace;font-size:11px;color:var(--text-secondary)">${r.request_id.substring(0, 12)}…</td>
+        <td>${r.total_tokens.toLocaleString()}</td>
+        <td>${r.latency_ms}ms</td>
+        <td>${execStatusBadge(r.status)}</td>
+        <td><span class="badge badge-info" style="font-size:11px;padding:1px 6px">${r.source}</span></td>
+        <td style="font-size:12px;color:var(--text-secondary)">${fmtDate(r.created_at)}</td>
+      </tr>`).join('');
+    }
+
+    // Cost records
+    const costTbody = document.getElementById('ad-costs-tbody');
+    if (!costRecords.length) {
+      costTbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:20px">No cost records yet</td></tr>';
+    } else {
+      costTbody.innerHTML = costRecords.map(r => `<tr>
+        <td style="font-family:monospace;font-size:11px;color:var(--text-secondary)">${r.request_id.substring(0, 12)}…</td>
+        <td>${r.total_tokens.toLocaleString()}</td>
+        <td style="font-weight:600">${fmtCost(r.cost_usd)}</td>
+        <td><span class="badge badge-info" style="font-size:11px;padding:1px 6px">${r.source}</span></td>
+        <td style="font-size:12px;color:var(--text-secondary)">${fmtDate(r.created_at)}</td>
+      </tr>`).join('');
+    }
+
+  } catch (e) {
+    console.error('Agent detail error:', e);
+    showToast('Error loading agent details');
+  }
+}
+
+function openPlaygroundForAgent() {
+  if (STATE.currentAgentId) {
+    navigateTo('playground', STATE.currentAgentId);
+  }
+}
+
+function editCurrentAgent() {
+  if (STATE.currentAgentId) {
+    navigateTo('create-agent', STATE.currentAgentId);
+  }
+}
+
+async function toggleAgentStatus() {
+  if (!STATE.currentAgentId) return;
+  try {
+    const agent = await fetchJSON(`/agents/${STATE.currentAgentId}`);
+    const newStatus = agent.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    await fetch(`/agents/${STATE.currentAgentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    showToast(`Agent ${newStatus === 'ACTIVE' ? 'enabled' : 'disabled'} ✓`);
+    loadAgentDetail(STATE.currentAgentId);
+  } catch (e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: CREATE / EDIT AGENT
+// ═══════════════════════════════════════════════════════════
+async function setupAgentForm(agentId) {
+  document.getElementById('page-create-agent').classList.add('active');
+
+  if (agentId) {
+    // Edit mode
+    document.getElementById('form-title').textContent = 'Edit Agent';
+    document.getElementById('form-subtitle').textContent = 'Update agent configuration.';
+    document.getElementById('form-submit-btn').textContent = 'Save Changes';
+    document.getElementById('form-agent-id').value = agentId;
+
+    try {
+      const agent = await fetchJSON(`/agents/${agentId}`);
+      document.getElementById('form-name').value = agent.name;
+      document.getElementById('form-description').value = agent.description || '';
+      document.getElementById('form-model').value = agent.model;
+      document.getElementById('form-team').value = agent.owner_team;
+      document.getElementById('form-budget').value = agent.daily_token_budget;
+      document.getElementById('form-status').value = agent.status;
+    } catch (e) {
+      showToast('Error loading agent');
+    }
+  } else {
+    // Create mode
+    document.getElementById('form-title').textContent = 'Create Agent';
+    document.getElementById('form-subtitle').textContent = 'Add a new agent to the fleet.';
+    document.getElementById('form-submit-btn').textContent = 'Create Agent';
+    document.getElementById('form-agent-id').value = '';
+    document.getElementById('form-name').value = '';
+    document.getElementById('form-description').value = '';
+    document.getElementById('form-model').value = 'gpt-4o-mini';
+    document.getElementById('form-team').value = 'default';
+    document.getElementById('form-budget').value = '100000';
+    document.getElementById('form-status').value = 'ACTIVE';
+  }
+}
+
+async function submitAgentForm() {
+  const agentId = document.getElementById('form-agent-id').value;
+  const data = {
+    name: document.getElementById('form-name').value.trim(),
+    description: document.getElementById('form-description').value.trim() || null,
+    model: document.getElementById('form-model').value,
+    owner_team: document.getElementById('form-team').value.trim() || 'default',
+    daily_token_budget: parseInt(document.getElementById('form-budget').value) || 100000,
+    status: document.getElementById('form-status').value
+  };
+
+  if (!data.name) { showToast('Agent name is required'); return; }
+
+  try {
+    if (agentId) {
+      // Update
+      await fetch(`/agents/${agentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      showToast('Agent updated ✓');
+      navigateTo('agent-detail', parseInt(agentId));
+    } else {
+      // Create
+      const resp = await fetch('/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'Create failed');
+      }
+      const created = await resp.json();
+      showToast('Agent created ✓');
+      navigateTo('agent-detail', created.id);
+    }
+  } catch (e) {
+    showToast('Error: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: PLAYGROUND
+// ═══════════════════════════════════════════════════════════
+async function loadPlayground(preselectedAgentId) {
+  try {
+    const agents = await fetchJSON('/agents');
+    STATE.agents = agents;
+    const select = document.getElementById('pg-agent-select');
+    select.innerHTML = '<option value="">Select an agent…</option>' +
+      agents.filter(a => a.status === 'ACTIVE').map(a =>
+        `<option value="${a.id}" data-model="${a.model}">${a.name}</option>`
+      ).join('');
+
+    if (preselectedAgentId) {
+      select.value = preselectedAgentId;
+      updatePlaygroundAgent();
+    }
+
+    // Reset UI
+    document.getElementById('pg-result-card').style.display = 'none';
+    document.getElementById('pg-placeholder').style.display = '';
+    document.getElementById('pg-steps-card').style.display = 'none';
+  } catch (e) {
+    console.error('Playground load error:', e);
+  }
+}
+
+function updatePlaygroundAgent() {
+  const select = document.getElementById('pg-agent-select');
+  const opt = select.options[select.selectedIndex];
+  if (opt && opt.value) {
+    const agent = STATE.agents.find(a => a.id === parseInt(opt.value));
+    document.getElementById('pg-model').textContent = agent ? agent.model : '—';
+    document.getElementById('pg-status').innerHTML = agent ? statusBadge(agent.status) : '—';
+  } else {
+    document.getElementById('pg-model').textContent = '—';
+    document.getElementById('pg-status').textContent = '—';
+  }
+}
+
+function openPlaygroundForAgentId(agentId) {
+  navigateTo('playground', agentId);
+}
+
+async function runPlayground() {
+  const agentId = document.getElementById('pg-agent-select').value;
+  if (!agentId) { showToast('Select an agent first'); return; }
+
+  const prompt = document.getElementById('pg-prompt').value.trim();
+  const btn = document.getElementById('pg-run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+
+  // Show steps
+  document.getElementById('pg-steps-card').style.display = '';
+  document.getElementById('pg-result-card').style.display = 'none';
+  document.getElementById('pg-placeholder').style.display = 'none';
+
+  const stepsDiv = document.getElementById('pg-steps');
+  const steps = ['Request sent', 'Agent executed', 'Usage recorded', 'Cost calculated'];
+  stepsDiv.innerHTML = steps.map((s, i) => `<div class="exec-step pending" id="pg-step-${i}">○ ${s}</div>`).join('');
+
+  // Animate steps
+  for (let i = 0; i < steps.length; i++) {
+    await new Promise(r => setTimeout(r, 200));
+    document.getElementById(`pg-step-${i}`).className = 'exec-step done';
+    document.getElementById(`pg-step-${i}`).innerHTML = `✓ ${steps[i]}`;
+  }
+
+  try {
+    const resp = await fetch(`/agents/${agentId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt || undefined, source: 'demo' })
+    });
+    const data = await resp.json();
+
+    // Complete steps
+    stepsDiv.querySelectorAll('.exec-step').forEach(s => {
+      s.className = 'exec-step done';
+      if (!s.innerHTML.startsWith('✓')) s.innerHTML = '✓ ' + s.textContent.substring(2);
+    });
+
+    // Show result
+    document.getElementById('pg-result-card').style.display = '';
+    document.getElementById('pg-placeholder').style.display = 'none';
+
+    // Response text
+    const resultText = document.getElementById('pg-result-text');
+    if (data.usage && data.usage.status === 'success') {
+      resultText.textContent = `Agent "${data.agent.name}" executed successfully.\n\n` +
+        `Model: ${data.agent.model}\n` +
+        `Request ID: ${data.request_id}\n` +
+        `Tokens: ${data.usage.total_tokens} (${data.usage.input_tokens} in / ${data.usage.output_tokens} out)\n` +
+        `Latency: ${data.usage.latency_ms}ms\n` +
+        `Estimated Cost: ${fmtCost(data.cost.cost_usd)}\n` +
+        `Trace: ${data.trace.join(' → ')}\n` +
+        `Total Pipeline: ${data.timings_ms.total}ms`;
+    } else {
+      resultText.textContent = `Execution failed: ${data.usage?.error_message || 'Unknown error'}`;
+    }
+
+    // Metrics
+    const metricsDiv = document.getElementById('pg-metrics');
+    metricsDiv.style.display = '';
+    metricsDiv.innerHTML = `
+      <div class="detail-meta-item"><div class="label">Request ID</div><div class="value" style="font-family:monospace;font-size:11px">${data.request_id}</div></div>
+      <div class="detail-meta-item"><div class="label">Total Tokens</div><div class="value">${data.usage.total_tokens}</div></div>
+      <div class="detail-meta-item"><div class="label">Latency</div><div class="value">${data.usage.latency_ms}ms</div></div>
+      <div class="detail-meta-item"><div class="label">Cost</div><div class="value">${fmtCost(data.cost.cost_usd)}</div></div>
+      <div class="detail-meta-item"><div class="label">Status</div><div class="value">${data.usage.status === 'success' ? '✓ SUCCESS' : '✗ FAILED'}</div></div>
+      <div class="detail-meta-item"><div class="label">Budget Used</div><div class="value">${parseFloat(data.cost.budget_used_pct || 0).toFixed(1)}%</div></div>
+    `;
+
+    // Raw JSON
+    document.getElementById('pg-raw-json').textContent = JSON.stringify(data, null, 2);
+
+    showToast('Execution complete ✓');
+
+    // Auto-refresh overview data in background
+    setTimeout(() => {
+      if (STATE.overview) loadOverview();
+    }, 500);
+
+  } catch (e) {
+    document.getElementById('pg-result-card').style.display = '';
+    document.getElementById('pg-result-text').textContent = 'Error: ' + e.message;
+    showToast('Execution failed');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Agent';
+  }
+}
+
+function toggleTechnicalDetails() {
+  const el = document.getElementById('pg-technical');
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: MODELS
+// ═══════════════════════════════════════════════════════════
+async function loadModels() {
+  try {
+    const [models, pricing, modelAnalytics, agents] = await Promise.all([
+      fetchJSON(`${USAGE_API}/models`),
+      fetchJSON(`${COST_API}/pricing`),
+      fetchJSON(`${COST_API}/analytics/models`).catch(() => []),
+      fetchJSON('/agents')
+    ]);
+
+    const pricingMap = {};
+    pricing.forEach(p => { pricingMap[p.model] = p; });
+
+    const analyticsMap = {};
+    modelAnalytics.forEach(m => { analyticsMap[m.model] = m; });
+
+    const agentsByModel = {};
+    agents.forEach(a => {
+      if (!agentsByModel[a.model]) agentsByModel[a.model] = [];
+      agentsByModel[a.model].push(a.name);
+    });
+
+    const tbody = document.getElementById('models-tbody');
+    tbody.innerHTML = models.map(m => {
+      const p = pricingMap[m.name] || {};
+      const a = analyticsMap[m.name] || {};
+      const agentsUsing = agentsByModel[m.name] || [];
+      return `<tr>
+        <td><strong style="color:var(--accent)">${m.name}</strong></td>
+        <td>${m.provider}</td>
+        <td>${m.is_local ? '<span class="badge badge-info">Local</span>' : '<span class="badge badge-warning">Cloud API</span>'}</td>
+        <td>${p.input_price_per_1k != null ? '$' + parseFloat(p.input_price_per_1k).toFixed(6) : '—'}</td>
+        <td>${p.output_price_per_1k != null ? '$' + parseFloat(p.output_price_per_1k).toFixed(6) : '—'}</td>
+        <td>${agentsUsing.length > 0 ? agentsUsing.map(n => `<span style="font-size:11px;color:var(--text-secondary)">${n}</span>`).join(', ') : '—'}</td>
+        <td>${(a.request_count || 0).toLocaleString()}</td>
+        <td style="font-weight:600">${fmtCost(a.total_cost_usd)}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('Models load error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: OBSERVABILITY
+// ═══════════════════════════════════════════════════════════
+async function loadObservability() {
+  try {
+    const source = document.getElementById('obs-source-filter').value;
+    const sourceParam = source ? `?source=${source}` : '';
+
+    const usageUrl = source
+      ? `${USAGE_API}/usage?source=${source}&page=1&page_size=50`
+      : `${USAGE_API}/usage?page=1&page_size=50`;
+    const [summary, usage] = await Promise.all([
+      fetchJSON(`${USAGE_API}/usage/summary`),
+      fetchJSON(usageUrl)
+    ]);
+
+    document.getElementById('obs-requests').textContent = summary.total_requests.toLocaleString();
+    document.getElementById('obs-tokens').textContent = fmt(summary.total_tokens);
+    document.getElementById('obs-success').textContent = summary.success_count.toLocaleString();
+    document.getElementById('obs-failed').textContent = summary.failed_count.toLocaleString();
+    document.getElementById('obs-latency').textContent = Math.round(summary.avg_latency_ms) + 'ms';
+
+    const items = usage.items || [];
+    const tbody = document.getElementById('obs-tbody');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="color:var(--text-muted);text-align:center;padding:30px">No records</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map(r => `<tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--text-secondary)">${r.request_id.substring(0, 12)}…</td>
+      <td><strong>${r.agent_name}</strong></td>
+      <td>${r.input_tokens.toLocaleString()}</td>
+      <td>${r.output_tokens.toLocaleString()}</td>
+      <td style="font-weight:600">${r.total_tokens.toLocaleString()}</td>
+      <td>${r.latency_ms}ms</td>
+      <td>${execStatusBadge(r.status)}</td>
+      <td><span class="badge badge-info" style="font-size:11px;padding:1px 6px">${r.source}</span></td>
+      <td style="font-size:12px;color:var(--text-secondary)">${fmtDate(r.created_at)}</td>
+    </tr>`).join('');
+  } catch (e) {
+    console.error('Observability load error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: COSTS
+// ═══════════════════════════════════════════════════════════
+async function loadCosts() {
+  try {
+    const [overview, modelAnalytics, agentAnalytics, pricing, agents] = await Promise.all([
+      fetchJSON(`${COST_API}/analytics/overview`),
+      fetchJSON(`${COST_API}/analytics/models`),
+      fetchJSON(`${COST_API}/analytics/agents`),
+      fetchJSON(`${COST_API}/pricing`),
+      fetchJSON('/agents')
+    ]);
+
+    const totalCost = parseFloat(overview.total_cost_usd || 0);
+    const totalReq = overview.total_requests || 0;
+    const avgCost = totalReq > 0 ? totalCost / totalReq : 0;
+
+    document.getElementById('cost-total').textContent = fmtCost(totalCost);
+    document.getElementById('cost-avg').textContent = fmtCost(avgCost);
+    document.getElementById('cost-requests').textContent = totalReq.toLocaleString();
+
+    if (agentAnalytics.length > 0) {
+      document.getElementById('cost-highest-agent').textContent = agentAnalytics[0].agent_name;
+    }
+
+    // Cost by agent chart
+    destroyChart('costAgent');
+    if (agentAnalytics.length) {
+      const top = agentAnalytics.slice(0, 8);
+      STATE.charts.costAgent = new Chart(document.getElementById('cost-agent-chart'), {
+        type: 'bar',
+        data: {
+          labels: top.map(d => d.agent_name),
+          datasets: [{ data: top.map(d => parseFloat(d.total_cost_usd || 0)), backgroundColor: PALETTE, borderRadius: 6, barThickness: 24 }]
+        },
+        options: { ...chartOpts('$'), indexAxis: 'y' }
+      });
+    }
+
+    // Cost by model chart
+    destroyChart('costModel');
+    if (modelAnalytics.length) {
+      STATE.charts.costModel = new Chart(document.getElementById('cost-model-chart'), {
+        type: 'doughnut',
+        data: {
+          labels: modelAnalytics.map(d => d.model),
+          datasets: [{ data: modelAnalytics.map(d => parseFloat(d.total_cost_usd || 0)), backgroundColor: PALETTE, borderWidth: 0 }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#6b7280', font: { size: 11 } } } }
+        }
+      });
+    }
+
+    // Pricing table
+    document.getElementById('cost-pricing-tbody').innerHTML = pricing.map(p => `<tr>
+      <td><strong style="color:var(--accent)">${p.model}</strong></td>
+      <td>$${parseFloat(p.input_price_per_1k).toFixed(6)}</td>
+      <td>$${parseFloat(p.output_price_per_1k).toFixed(6)}</td>
+      <td>${p.currency}</td>
+    </tr>`).join('');
+
+    // Budget table
+    const agentMap = {};
+    agents.forEach(a => { agentMap[a.id] = a; });
+
+    document.getElementById('cost-budget-tbody').innerHTML = agentAnalytics.map(a => {
+      const agent = agentMap[a.agent_id] || {};
+      const budget = agent.daily_token_budget || 100000;
+      const tokensToday = a.tokens_today || 0;
+      const pct = Math.round(tokensToday / budget * 100);
+      const remaining = Math.max(0, budget - tokensToday);
+      const statusBdg = pct >= 100 ? 'badge-critical' : pct >= 80 ? 'badge-warning' : 'badge-active';
+      const statusText = pct >= 100 ? 'Over Budget' : pct >= 80 ? 'Warning' : 'OK';
+
+      return `<tr>
+        <td><strong>${a.agent_name}</strong></td>
+        <td>${fmt(budget)}</td>
+        <td>${fmt(tokensToday)}</td>
+        <td>
+          <div class="budget-bar-container">
+            <div class="budget-bar"><div class="budget-fill" style="width:${Math.min(100, pct)}%;background:${pct >= 100 ? 'var(--danger)' : pct >= 80 ? 'var(--warning)' : 'var(--success)'}"></div></div>
+            <span class="budget-pct">${pct}%</span>
+          </div>
+        </td>
+        <td>${fmt(remaining)}</td>
+        <td><span class="badge ${statusBdg}"><span class="dot"></span>${statusText}</span></td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('Costs load error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: ALERTS
+// ═══════════════════════════════════════════════════════════
+async function loadAlerts() {
+  try {
+    const alerts = await fetchJSON(`${COST_API}/alerts?limit=50`);
+    const tbody = document.getElementById('alerts-full-tbody');
+    if (!alerts.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--text-muted);text-align:center;padding:30px">No alerts — all agents within budget</td></tr>';
+      return;
+    }
+    tbody.innerHTML = alerts.map(a => `<tr>
+      <td><strong>${a.agent_name}</strong></td>
+      <td>${alertBadge(a.level)}</td>
+      <td style="font-weight:600;color:${a.level === 'CRITICAL' ? 'var(--danger)' : 'var(--warning)'}">${parseFloat(a.budget_used_pct || 0).toFixed(1)}%</td>
+      <td>${(a.tokens_today || 0).toLocaleString()}</td>
+      <td>${(a.daily_token_budget || 0).toLocaleString()}</td>
+      <td style="font-size:12px;color:var(--text-secondary)">${a.alert_date}</td>
+      <td style="font-size:12px;color:var(--text-secondary);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.message}</td>
+    </tr>`).join('');
+  } catch (e) {
+    console.error('Alerts load error:', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PAGE: INFRASTRUCTURE
+// ═══════════════════════════════════════════════════════════
+async function loadInfrastructure() {
+  // Check agent-service health
+  try {
+    const h = await fetchJSON('/health/deps');
+    setBadge('infra-agent-badge', 'ok');
+    document.getElementById('infra-agent-db').textContent = h.database === 'ok' ? 'agentdb ✓' : 'agentdb ✗';
+    setBadge('infra-pg-badge', h.database === 'ok' ? 'ok' : 'error');
+
+    // Usage status from agent deps
+    setBadge('infra-usage-badge', h['usage-service'] === 'ok' ? 'ok' : 'error');
+    // Cost status from agent deps
+    setBadge('infra-cost-badge', h['cost-service'] === 'ok' ? 'ok' : 'error');
+  } catch (e) {
+    setBadge('infra-agent-badge', 'error');
+  }
+
+  // Check usage-service health
+  try {
+    const h = await fetchJSON(`${USAGE_API}/health/deps`);
+    document.getElementById('infra-usage-db').textContent = h.database === 'ok' ? 'usagedb ✓' : 'usagedb ✗';
+  } catch (e) {}
+
+  // Check cost-service health
+  try {
+    const h = await fetchJSON(`${COST_API}/health/deps`);
+    document.getElementById('infra-cost-db').textContent = h.database === 'ok' ? 'costdb ✓' : 'costdb ✗';
+  } catch (e) {}
+
+  // Update system health badge
+  updateSystemHealth();
+}
+
+function setBadge(id, status) {
+  const el = document.getElementById(id);
+  if (status === 'ok') {
+    el.className = 'badge badge-active';
+    el.innerHTML = '<span class="dot"></span>Healthy';
+  } else {
+    el.className = 'badge badge-critical';
+    el.innerHTML = '<span class="dot"></span>Error';
+  }
+}
+
+async function updateSystemHealth() {
+  try {
+    const h = await fetchJSON('/health/deps');
+    const badge = document.getElementById('system-health-badge');
+    const allOk = h.database === 'ok' && h['usage-service'] === 'ok' && h['cost-service'] === 'ok';
+    if (allOk) {
+      badge.innerHTML = '<div class="dot"></div>All Systems Operational';
+      badge.style.background = 'var(--success-bg)';
+      badge.style.color = 'var(--success)';
+    } else {
+      badge.innerHTML = '<div class="dot" style="background:var(--danger)"></div>System Issues Detected';
+      badge.style.background = 'var(--danger-bg)';
+      badge.style.color = 'var(--danger)';
+    }
+  } catch (e) {
+    const badge = document.getElementById('system-health-badge');
+    badge.innerHTML = '<div class="dot" style="background:var(--danger)"></div>Service Unavailable';
+    badge.style.background = 'var(--danger-bg)';
+    badge.style.color = 'var(--danger)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// INITIALIZATION
+// ═══════════════════════════════════════════════════════════
+loadOverview();
+updateSystemHealth();
+
+// Auto-refresh every 30s
+setInterval(() => {
+  const activePage = document.querySelector('.page.active');
+  if (activePage && activePage.id === 'page-overview') {
+    loadOverview();
+  }
+  updateSystemHealth();
+}, 30000);
+</script>
+
+</body>
+</html>

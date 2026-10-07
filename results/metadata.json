@@ -1,0 +1,18 @@
+{
+  "run_timestamp": "2026-10-05T19:51:31.052561+00:00",
+  "docker_cpu_count": "N/A (in-container)",
+  "docker_version": "N/A",
+  "model_mode": "mock",
+  "mock_latency_scale": 1.0,
+  "concurrency_levels": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "n_requests_per_level": 400,
+  "n_repeats": 3,
+  "n_warmup": 20,
+  "quick_mode": false
+}
